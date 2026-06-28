@@ -2,81 +2,81 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/jackc/pgx/v4/stdlib"
-	"github.com/joho/godotenv"
+	_ "github.com/lib/pq" // Driver do Postgres
 )
 
-// App struct (para injeção de dependência)
+// Definição da struct App
 type App struct {
-	DB         *sql.DB
-	MasterKey  string
+	DB        *sql.DB
+	MasterKey string
+}
+
+// Inicializa a tabela caso ela não exista
+func initDatabase(db *sql.DB) error {
+	query := `
+    CREATE TABLE IF NOT EXISTS api_keys (
+        id SERIAL PRIMARY KEY,
+        key_hash CHAR(64) NOT NULL UNIQUE,
+        name VARCHAR(100) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT TRUE
+    );
+    CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash);
+    `
+	_, err := db.Exec(query)
+	return err
+}
+
+// Configura o roteamento da aplicação
+func (a *App) Routes() http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/health", a.healthHandler)
+	mux.HandleFunc("/validate", a.validateKeyHandler)
+
+	createHandler := http.HandlerFunc(a.createKeyHandler)
+	mux.Handle("/keys", a.masterKeyAuthMiddleware(createHandler))
+
+	return mux
 }
 
 func main() {
-	// Carrega o .env para desenvolvimento local. Em produção, isso não fará nada.
-	_ = godotenv.Load()
-
-	// --- Configuração ---
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8001" // Porta padrão
+	// 1. Pega a string de conexão das variáveis de ambiente
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = "postgres://postgres:senha_secreta_auth@db-auth:5432/auth_db?sslmode=disable"
 	}
 
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		log.Fatal("DATABASE_URL deve ser definida")
-	}
-
-	masterKey := os.Getenv("MASTER_KEY")
-	if masterKey == "" {
-		log.Fatal("MASTER_KEY deve ser definida")
-	}
-
-	// --- Conexão com o Banco ---
-	db, err := connectDB(databaseURL)
+	// 2. Conecta ao banco de dados
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("Não foi possível conectar ao banco de dados: %v", err)
+		log.Fatalf("Erro ao conectar no banco: %v", err)
 	}
 	defer db.Close()
 
-	app := &App{
-		DB:         db,
-		MasterKey:  masterKey,
-	}
-
-	// --- Rotas da API ---
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", app.healthHandler)
-
-	// Endpoint público para validar uma chave
-	mux.HandleFunc("/validate", app.validateKeyHandler)
-
-	// Endpoints de "admin" para criar/gerenciar chaves
-	// Eles são protegidos pelo middleware de autenticação
-	mux.Handle("/admin/keys", app.masterKeyAuthMiddleware(http.HandlerFunc(app.createKeyHandler)))
-
-	log.Printf("Serviço de Autenticação (Go) rodando na porta %s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
-		log.Fatal(err)
-	}
-}
-
-// connectDB inicializa e testa a conexão com o PostgreSQL
-func connectDB(databaseURL string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", databaseURL)
+	// 3. Garante que a tabela api_keys existe
+	err = initDatabase(db)
 	if err != nil {
-		return nil, err
+		log.Fatalf("Erro ao rodar migração automática: %v", err)
 	}
 
-	if err = db.Ping(); err != nil {
-		return nil, err
+	// 4. Pega a Master Key do ambiente
+	masterKey := os.Getenv("MASTER_KEY")
+	if masterKey == "" {
+		masterKey = "chave_temporaria_local"
 	}
 
-	log.Println("Conectado ao PostgreSQL com sucesso!")
-	return db, nil
+	app := &App{
+		DB:        db,
+		MasterKey: masterKey,
+	}
+
+	// 5. Configura e define a porta (corrigindo o erro de 'undefined: port')
+	port := ":8001"
+	log.Printf("Serviço de Autenticação (Go) rodando na porta %s...", port)
+	log.Fatal(http.ListenAndServe(port, app.Routes()))
 }
