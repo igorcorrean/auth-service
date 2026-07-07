@@ -19,7 +19,7 @@ type App struct {
 func initDatabase(db *sql.DB) error {
 	query := `
     CREATE TABLE IF NOT EXISTS api_keys (
-        id SERIAL PRIMARY KEY,
+        id SERIAL PRIMARY KEY, 
         key_hash CHAR(64) NOT NULL UNIQUE,
         name VARCHAR(100) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -46,13 +46,16 @@ func (a *App) Routes() http.Handler {
 
 func main() {
 	// 1. Pega a string de conexão das variáveis de ambiente
-	connStr := os.Getenv("DATABASE_URL")
+	connStr := os.Getenv("DATABASE_URL_AUTH")
+	driver := os.Getenv("DB_DRIVER_AUTH")
 	if connStr == "" {
 		connStr = "postgres://postgres:senha_secreta_auth@db-auth:5432/auth_db?sslmode=disable"
 	}
-
+	if driver == "" {
+		driver = "postgres"
+	}
 	// 2. Conecta ao banco de dados
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open(driver, connStr)
 	if err != nil {
 		log.Fatalf("Erro ao conectar no banco: %v", err)
 	}
