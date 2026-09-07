@@ -3,13 +3,8 @@ name: 🚀 CI/CD DevSecOps - Auth Service
 on:
   push:
     branches: [ main, develop ]
-    paths:
-      - 'services/auth/**'
-      - '.github/workflows/ci-auth.yaml'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'services/auth/**'
   workflow_dispatch:
 
 env:
