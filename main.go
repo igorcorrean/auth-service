@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq" // Driver do Postgres
 )
@@ -19,7 +20,7 @@ type App struct {
 func initDatabase(db *sql.DB) error {
 	query := `
     CREATE TABLE IF NOT EXISTS api_keys (
-        id SERIAL PRIMARY KEY, 
+        id SERIAL PRIMARY KEY,
         key_hash CHAR(64) NOT NULL UNIQUE,
         name VARCHAR(100) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -35,6 +36,7 @@ func initDatabase(db *sql.DB) error {
 func (a *App) Routes() http.Handler {
 	mux := http.NewServeMux()
 
+	// Os handlers abaixo estão implementados no seu arquivo handlers.go
 	mux.HandleFunc("/health", a.healthHandler)
 	mux.HandleFunc("/validate", a.validateKeyHandler)
 
@@ -45,32 +47,50 @@ func (a *App) Routes() http.Handler {
 }
 
 func main() {
-	// 1. Pega a string de conexão das variáveis de ambiente
-	connStr := os.Getenv("DATABASE_URL_AUTH")
-	driver := os.Getenv("DB_DRIVER_AUTH")
+	// 1. Recupera as variáveis de ambiente obrigatoriamente (Configuradas nas Secrets do EKS)
+	connStr := os.Getenv("DB_URL_AUTH")
 	if connStr == "" {
-		connStr = "postgres://postgres:senha_secreta_auth@db-auth:5432/auth_db?sslmode=disable"
+		log.Fatal("Erro crítico: A variável de ambiente DB_URL_AUTH não foi definida.")
 	}
+
+	driver := os.Getenv("DB_DRIVER_AUTH")
 	if driver == "" {
 		driver = "postgres"
 	}
-	// 2. Conecta ao banco de dados
+
+	masterKey := os.Getenv("MASTER_KEY")
+	if masterKey == "" {
+		log.Fatal("Erro crítico: A variável de ambiente MASTER_KEY não foi definida.")
+	}
+
+	// 2. Prepara o componente de conexão
 	db, err := sql.Open(driver, connStr)
 	if err != nil {
-		log.Fatalf("Erro ao conectar no banco: %v", err)
+		log.Fatalf("Erro crítico na configuração do driver de banco: %v", err)
 	}
 	defer db.Close()
 
-	// 3. Garante que a tabela api_keys existe
-	err = initDatabase(db)
-	if err != nil {
-		log.Fatalf("Erro ao rodar migração automática: %v", err)
-	}
+	// 3. Loop de Retry (Backoff) para conectar e rodar as migrações no Amazon RDS
+	// Evita que o pod caia se o banco RDS estiver iniciando ou sob carga
+	maxRetries := 5
+	for i := 1; i <= maxRetries; i++ {
+		log.Printf("Tentando conectar ao banco e rodar migrações (Tentativa %d de %d)...", i, maxRetries)
 
-	// 4. Pega a Master Key do ambiente
-	masterKey := os.Getenv("MASTER_KEY")
-	if masterKey == "" {
-		masterKey = "chave_temporaria_local"
+		err = db.Ping()
+		if err == nil {
+			err = initDatabase(db)
+			if err == nil {
+				log.Println("Conexão estabelecida e tabelas validadas com sucesso!")
+				break
+			}
+		}
+
+		log.Printf("Falha na tentativa %d: %v", i, err)
+		if i == maxRetries {
+			log.Fatalf("Erro fatal: Não foi possível sincronizar com o banco após %d tentativas. Encerrando.", maxRetries)
+		}
+
+		time.Sleep(3 * time.Second)
 	}
 
 	app := &App{
@@ -78,8 +98,8 @@ func main() {
 		MasterKey: masterKey,
 	}
 
-	// 5. Configura e define a porta (corrigindo o erro de 'undefined: port')
+	// 4. Inicia o servidor HTTP na porta especificada pelo desafio
 	port := ":8001"
-	log.Printf("Serviço de Autenticação (Go) rodando na porta %s...", port)
+	log.Printf("Serviço de Autenticação (Go) pronto e rodando na porta %s...", port)
 	log.Fatal(http.ListenAndServe(port, app.Routes()))
 }

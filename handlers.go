@@ -19,8 +19,16 @@ type CreateKeyResponse struct {
 	Message string `json:"message"`
 }
 
-// healthHandler é um simples endpoint de verificação de saúde
+// healthHandler é um endpoint de verificação de saúde inteligente para o Kubernetes
 func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
+	// Testa a saúde da conexão em tempo real com o Amazon RDS
+	if err := a.DB.Ping(); err != nil {
+		log.Printf("Health Check Falhou: Banco de dados inacessível: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"status": "unhealthy", "error": "database disconnected"})
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
