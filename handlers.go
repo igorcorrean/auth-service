@@ -21,16 +21,18 @@ type CreateKeyResponse struct {
 
 // healthHandler é um endpoint de verificação de saúde inteligente para o Kubernetes
 func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	// Testa a saúde da conexão em tempo real com o Amazon RDS
 	if err := a.DB.Ping(); err != nil {
 		log.Printf("Health Check Falhou: Banco de dados inacessível: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"status": "unhealthy", "error": "database disconnected"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "unhealthy", "error": "database disconnected"})
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 // validateKeyHandler verifica se uma chave de API (enviada via Header) é válida
@@ -58,8 +60,9 @@ func (a *App) validateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Chave válida
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Chave válida"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Chave válida"})
 }
 
 // createKeyHandler cria uma nova chave de API
@@ -102,8 +105,9 @@ func (a *App) createKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Nova chave criada com sucesso (ID: %d, Name: %s)", newID, req.Name)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(CreateKeyResponse{
+	_ = json.NewEncoder(w).Encode(CreateKeyResponse{
 		Name:    req.Name,
 		Key:     newKey, // Retorna a chave em texto plano pela última vez
 		Message: "Guarde esta chave com segurança! Você não poderá vê-la novamente.",
