@@ -146,13 +146,13 @@ jobs:
 
       - name: 📝 Atualizar Tag da Imagem no Overlay de Dev
         run: |
-          cd services/auth/overlays/dev
+          cd overlays/dev
           kustomize edit set image auth-image-placeholder=*:${{ github.sha }}
 
       - name: 📤 Commit e Push da Atualização
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add services/auth/overlays/dev/kustomization.yaml
+          git add overlays/dev/kustomization.yaml
           git commit -m "ci(auth): update image tag to ${{ github.sha }} [skip ci]"
           git push origin main
