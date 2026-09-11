@@ -80,7 +80,6 @@ jobs:
     name: 🐳 Docker Build, Scan & Push ECR
     runs-on: ubuntu-latest
     needs: security-sast-sca
-    # Push no ECR e GitOps apenas quando for merge/push na main ou develop
     if: github.event_name == 'push'
 
     steps:
@@ -92,34 +91,40 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # Necessário caso use AWS Academy
           aws-region: ${{ env.AWS_REGION }}
 
       - name: 🔓 Login no Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-        
-      # Container Image Scan: Valida a imagem gerada antes de enviar ao repositório
+      # 1º Passo: Construir a imagem localmente com a tag do commit
+      - name: 🏗️ Docker Build Local
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+
+      # 2º Passo: Scan da imagem já construída no Docker daemon local
       - name: 🛡️ Container Vulnerability Scan (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           format: 'table'
           severity: 'CRITICAL'
-          exit-code: '1' # Bloqueia e impede o push se a imagem base tiver CVE Crítica
+          exit-code: '1' # Bloqueia e impede os passos seguintes se houver CVE Crítica
 
-      - name: 🏗️ Docker Build 
+      # 3º Passo: Push para o ECR (só executa se o Trivy aprovar)
+      - name: 🚀 Push da Imagem para o ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
-        run: 
-          docker build --platform linux/amd64 \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
   # =========================================================================
   # JOB 4: Atualização Automática no Repositório de GitOps (CD)
   # =========================================================================
