@@ -128,31 +128,31 @@ jobs:
   # =========================================================================
   # JOB 4: Atualização Automática no Repositório de GitOps (CD)
   # =========================================================================
-  gitops-update:
-    name: 🔄 GitOps Auto-Sync Tag
-    runs-on: ubuntu-latest
-    needs: docker-build-push
+  # gitops-update:
+  #   name: 🔄 GitOps Auto-Sync Tag
+  #   runs-on: ubuntu-latest
+  #   needs: docker-build-push
 
-    steps:
-      - name: 📥 Checkout do Repositório GitOps
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.GITOPS_REPO }}
-          token: ${{ secrets.GITOPS_PAT }} # Personal Access Token com permissão de escrita no repo GitOps
-          ref: main
+  #   steps:
+  #     - name: 📥 Checkout do Repositório GitOps
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ${{ env.GITOPS_REPO }}
+  #         token: ${{ secrets.GITOPS_PAT }} # Personal Access Token com permissão de escrita no repo GitOps
+  #         ref: main
 
-      - name: 🔧 Configurar Kustomize
-        uses: imranismail/setup-kustomize@v2
+  #     - name: 🔧 Configurar Kustomize
+  #       uses: imranismail/setup-kustomize@v2
 
-      - name: 📝 Atualizar Tag da Imagem no Overlay de Dev
-        run: |
-          cd overlays/dev
-          kustomize edit set image auth-image-placeholder=*:${{ github.sha }}
+  #     - name: 📝 Atualizar Tag da Imagem no Overlay de Dev
+  #       run: |
+  #         cd overlays/dev
+  #         kustomize edit set image auth-image-placeholder=*:${{ github.sha }}
 
-      - name: 📤 Commit e Push da Atualização
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add overlays/dev/kustomization.yaml
-          git commit -m "ci(auth): update image tag to ${{ github.sha }} [skip ci]"
-          git push origin main
+  #     - name: 📤 Commit e Push da Atualização
+  #       run: |
+  #         git config --global user.name "github-actions[bot]"
+  #         git config --global user.email "github-actions[bot]@users.noreply.github.com"
+  #         git add overlays/dev/kustomization.yaml
+  #         git commit -m "ci(auth): update image tag to ${{ github.sha }} [skip ci]"
+  #         git push origin main
