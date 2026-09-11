@@ -10,7 +10,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: togglemaster/auth-service
-  GITOPS_REPO: seu-usuario/togglemaster-gitops
+  GITOPS_REPO: igorcorrean/togglemaster-infrastructure
   IMAGE_TAG: v1.0.0-${{ github.sha }}
 
 jobs:
