@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: auth-service
+  ECR_REPOSITORY: togglemaster/auth-service
   GITOPS_REPO: seu-usuario/togglemaster-gitops
   IMAGE_TAG: v1.0.0-${{ github.sha }}
 
