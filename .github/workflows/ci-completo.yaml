@@ -63,13 +63,12 @@ jobs:
         uses: securego/gosec@master
         with:
           args: '-severity high -confidence high ./...'
-          
+
       # SCA: Análise de Vulnerabilidades em Dependências (Trivy FS)
       - name: 📦 SCA - Scan de Dependências (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: 'services/auth'
           format: 'table'
           severity: 'CRITICAL'
           exit-code: '1' # Bloqueia o pipeline se encontrar vulnerabilidade CRÍTICA
@@ -99,7 +98,17 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: 🏗️ Docker Build Local
+        
+      # Container Image Scan: Valida a imagem gerada antes de enviar ao repositório
+      - name: 🛡️ Container Vulnerability Scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: '1' # Bloqueia e impede o push se a imagem base tiver CVE Crítica
+
+      - name: 🏗️ Docker Build 
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
@@ -110,19 +119,6 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      # Container Image Scan: Valida a imagem gerada antes de enviar ao repositório
-      - name: 🛡️ Container Vulnerability Scan (Trivy)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
-          format: 'table'
-          severity: 'CRITICAL'
-          exit-code: '1' # Bloqueia e impede o push se a imagem base tiver CVE Crítica
-
-      - name: 🚀 Push da Imagem para o ECR
-        run: |
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
   # =========================================================================
   # JOB 4: Atualização Automática no Repositório de GitOps (CD)
