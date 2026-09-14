@@ -12,6 +12,7 @@ env:
   ECR_REPOSITORY: togglemaster/auth-service
   GITOPS_REPO: igorcorrean/togglemaster-infrastructure
   IMAGE_TAG: v1.0.0-${{ github.sha }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
 
 jobs:
   # =========================================================================
@@ -62,7 +63,7 @@ jobs:
       - name: 🔎 SAST (Gosec)
         uses: securego/gosec@master
         with:
-          args: '-severity high -confidence high -exit-code=true ./...'
+          args: '-severity high -confidence high ./...'
 
       # SCA: Análise de vulnerabilidades nas dependências Go
       - name: 📦 SCA - Scan de Dependências (Trivy)
