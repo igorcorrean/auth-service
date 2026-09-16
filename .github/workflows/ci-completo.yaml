@@ -8,9 +8,8 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY: togglemaster/auth-service
-  GITOPS_REPO: igorcorrean/togglemaster-infrastructure
+  ECR_REPOSITORY: auth-service
+  GITOPS_REPO: igorcorrean/togglemaster-gitops
   IMAGE_TAG: v1.0.0-${{ github.sha }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
 
@@ -92,7 +91,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: 🔓 Login no Amazon ECR
         id: login-ecr
