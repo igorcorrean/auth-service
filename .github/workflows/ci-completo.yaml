@@ -103,7 +103,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker build --platform linux/amd64 \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }} \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }} 
 
       # 2º Passo: Scan da imagem localmente antes do push
       - name: 🛡️ Container Vulnerability Scan (Trivy)
