@@ -2,7 +2,9 @@ name: 🚀 CI/CD DevSecOps - Auth Service
 
 on:
   push:
-    branches: [ main]
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -137,17 +139,21 @@ jobs:
       - name: 🔧 Configurar Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: 📤 Commit e Push da Atualização
-        env:
-          PAT: ${{ secrets.GITOPS_PAT }}
+      - name: 📝 Atualizar Tag da Imagem e Commitar
         run: |
+          cd apps/overlays/production
+          
+          # Atualiza a tag no kustomization.yaml
+          kustomize edit set image auth-service=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          
+          echo "Manifesto atualizado:"
+          cat kustomization.yaml
+
+          # Configura credenciais para commit
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Garante que a URL remota use o token com permissão de escrita
-          git remote set-url origin https://x-access-token:${PAT}@github.com/${{ env.GITOPS_REPO }}.git
-          
-          git add apps/overlays/production/kustomization.yaml
+          git add kustomization.yaml
           
           if git diff --staged --quiet; then
             echo "Nenhuma alteração detectada para commit"
