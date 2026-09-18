@@ -50,7 +50,7 @@ func main() {
 	// 1. Recupera as variáveis de ambiente obrigatoriamente (Configuradas nas Secrets do EKS)
 	connStr := os.Getenv("DB_URL_AUTH")
 	if connStr == "" {
-		log.Fatal("Erro crítico: A variável de ambiente DB_URL_AUTH não foi definida.")
+		log.Fatal("Erro crítico: A variável de ambiente DB_URL_AUTH está vazia.")
 	}
 
 	driver := os.Getenv("DB_DRIVER_AUTH")
@@ -60,7 +60,7 @@ func main() {
 
 	masterKey := os.Getenv("MASTER_KEY")
 	if masterKey == "" {
-		log.Fatal("Erro crítico: A variável de ambiente MASTER_KEY não foi definida.")
+		log.Fatal("Erro crítico: A variável de ambiente MASTER_KEY está vazia.")
 	}
 
 	// 2. Prepara o componente de conexão
