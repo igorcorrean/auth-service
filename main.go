@@ -58,7 +58,7 @@ func main() {
 		driver = "postgres"
 	}
 
-	masterKey = "SenhaSuperInsegura"
+	masterKey := os.Getenv("MASTER_KEY")
 	if masterKey == "" {
 		log.Fatal("Erro crítico: A variável de ambiente MASTER_KEY está vazia.")
 	}
