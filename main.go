@@ -39,6 +39,7 @@ func (a *App) Routes() http.Handler {
 	// Os handlers abaixo estão implementados no seu arquivo handlers.go
 	mux.HandleFunc("/health", a.healthHandler)
 	mux.HandleFunc("/validate", a.validateKeyHandler)
+	mux.HandleFunc("/metrics", metricsHandler)
 
 	createHandler := http.HandlerFunc(a.createKeyHandler)
 	mux.Handle("/keys", a.masterKeyAuthMiddleware(createHandler))
@@ -101,5 +102,5 @@ func main() {
 	// 4. Inicia o servidor HTTP na porta especificada pelo desafio
 	port := ":8001"
 	log.Printf("Serviço de Autenticação (Go) pronto e rodando na porta %s...", port)
-	log.Fatal(http.ListenAndServe(port, app.Routes()))
+	log.Fatal(http.ListenAndServe(port, instrumentHandler("auth-service", app.Routes())))
 }
