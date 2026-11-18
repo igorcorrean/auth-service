@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // Driver do Postgres
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Definição da struct App
@@ -39,6 +41,7 @@ func (a *App) Routes() http.Handler {
 	// Os handlers abaixo estão implementados no seu arquivo handlers.go
 	mux.HandleFunc("/health", a.healthHandler)
 	mux.HandleFunc("/validate", a.validateKeyHandler)
+	mux.HandleFunc("/metrics", metricsHandler)
 
 	createHandler := http.HandlerFunc(a.createKeyHandler)
 	mux.Handle("/keys", a.masterKeyAuthMiddleware(createHandler))
@@ -47,6 +50,18 @@ func (a *App) Routes() http.Handler {
 }
 
 func main() {
+	shutdownTracing, err := initTracing(context.Background(), "auth-service")
+	if err != nil {
+		log.Fatalf("Não foi possível inicializar o tracing: %v", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTracing(ctx); err != nil {
+			log.Printf("Erro ao encerrar o tracing: %v", err)
+		}
+	}()
+
 	// 1. Recupera as variáveis de ambiente obrigatoriamente (Configuradas nas Secrets do EKS)
 	connStr := os.Getenv("DB_URL_AUTH")
 	if connStr == "" {
@@ -68,7 +83,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Erro crítico na configuração do driver de banco: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("Erro ao encerrar a conexão com o banco: %v", err)
+		}
+	}()
 
 	// 3. Loop de Retry (Backoff) para conectar e rodar as migrações no Amazon RDS
 	// Evita que o pod caia se o banco RDS estiver iniciando ou sob carga
@@ -101,5 +120,10 @@ func main() {
 	// 4. Inicia o servidor HTTP na porta especificada pelo desafio
 	port := ":8001"
 	log.Printf("Serviço de Autenticação (Go) pronto e rodando na porta %s...", port)
-	log.Fatal(http.ListenAndServe(port, app.Routes()))
+	if err := http.ListenAndServe(port, otelhttp.NewHandler(
+		instrumentHandler("auth-service", app.Routes()),
+		"auth-service",
+	)); err != nil {
+		log.Fatalf("Erro no servidor HTTP: %v", err)
+	}
 }

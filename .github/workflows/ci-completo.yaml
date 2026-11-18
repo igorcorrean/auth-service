@@ -32,9 +32,9 @@ jobs:
           go-version: '1.24'
 
       - name: 🔍 Linter (golangci-lint)
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: latest
+          version: v2.15.0
 
       - name: 🧪 Executar Testes Unitários
         run: |
@@ -127,7 +127,6 @@ jobs:
     name: 🔄 GitOps Auto-Sync Tag
     runs-on: ubuntu-latest
     needs: docker-build-push
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
 
     steps:
       - name: 📥 Checkout do Repositório GitOps
