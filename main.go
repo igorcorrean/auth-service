@@ -83,7 +83,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Erro crítico na configuração do driver de banco: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("Erro ao encerrar a conexão com o banco: %v", err)
+		}
+	}()
 
 	// 3. Loop de Retry (Backoff) para conectar e rodar as migrações no Amazon RDS
 	// Evita que o pod caia se o banco RDS estiver iniciando ou sob carga

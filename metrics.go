@@ -74,15 +74,29 @@ func metricsHandler(w http.ResponseWriter, _ *http.Request) {
 	requestMetrics.Lock()
 	defer requestMetrics.Unlock()
 
-	fmt.Fprintln(w, "# HELP http_requests_total Total number of HTTP requests.")
-	fmt.Fprintln(w, "# TYPE http_requests_total counter")
-	fmt.Fprintln(w, "# HELP http_request_duration_seconds Duration of HTTP requests in seconds.")
-	fmt.Fprintln(w, "# TYPE http_request_duration_seconds summary")
+	if _, err := fmt.Fprintln(w, "# HELP http_requests_total Total number of HTTP requests."); err != nil {
+		return
+	}
+	if _, err := fmt.Fprintln(w, "# TYPE http_requests_total counter"); err != nil {
+		return
+	}
+	if _, err := fmt.Fprintln(w, "# HELP http_request_duration_seconds Duration of HTTP requests in seconds."); err != nil {
+		return
+	}
+	if _, err := fmt.Fprintln(w, "# TYPE http_request_duration_seconds summary"); err != nil {
+		return
+	}
 	for key, metric := range requestMetrics.values {
 		parts := strings.Split(key, "|")
 		labels := fmt.Sprintf("service=\"%s\",method=\"%s\",route=\"%s\",status=\"%s\"", parts[0], parts[1], parts[2], parts[3])
-		fmt.Fprintf(w, "http_requests_total{%s} %d\n", labels, metric.count)
-		fmt.Fprintf(w, "http_request_duration_seconds_count{%s} %d\n", labels, metric.count)
-		fmt.Fprintf(w, "http_request_duration_seconds_sum{%s} %g\n", labels, metric.duration)
+		if _, err := fmt.Fprintf(w, "http_requests_total{%s} %d\n", labels, metric.count); err != nil {
+			return
+		}
+		if _, err := fmt.Fprintf(w, "http_request_duration_seconds_count{%s} %d\n", labels, metric.count); err != nil {
+			return
+		}
+		if _, err := fmt.Fprintf(w, "http_request_duration_seconds_sum{%s} %g\n", labels, metric.duration); err != nil {
+			return
+		}
 	}
 }
